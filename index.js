@@ -10,7 +10,7 @@ console.log(process.env.PORT);
 app.use(express.json());
 app.use(cors());
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.b7rwi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -33,8 +33,16 @@ async function run() {
     // ! Camp API's
 
     app.get("/camps", async (req, res) => {
-      const campsData = await campCollection.find().toArray();
-      res.send(campsData);
+      try {
+        const campsData = await campCollection.find().toArray();
+        res.status(200).json(campsData);
+      } catch (error) {
+        console.log(`Error fetching all camps data`, error);
+        res.status(500).json({
+          success: false,
+          message: " an error occurred while fetching all camps data",
+        });
+      }
     });
 
     // get popular camps
@@ -48,14 +56,21 @@ async function run() {
         res.status(200).json({
           success: true,
           data: popularCampsData,
-        })
+        });
       } catch (error) {
         console.log(`Error fetching popular camps`, error);
         res.status(500).json({
           success: false,
-          message: "An error occurred while fetching popular camps"
-        })
+          message: "An error occurred while fetching popular camps",
+        });
       }
+    });
+
+    // Get single camp details
+    app.get("/camps/:id", async (req, res) => {
+      const { id } = req.params;
+      const campData = await campCollection.findOne({ _id: new ObjectId(id) });
+      res.send(campData);
     });
     //
 
