@@ -29,6 +29,7 @@ async function run() {
     //
 
     const campCollection = client.db("Zenith").collection("camps");
+    const userCollection = client.db("Zenith").collection("users");
 
     // ! Camp API's
 
@@ -71,6 +72,31 @@ async function run() {
       const { id } = req.params;
       const campData = await campCollection.findOne({ _id: new ObjectId(id) });
       res.send(campData);
+    });
+
+    // ! Users API's
+
+    app.get("/users", async (req, res) => {
+      try {
+        const usersData = await userCollection.find().toArray();
+        res.status(200).json(usersData);
+      } catch (error) {
+        res
+          .status(500)
+          .send({ success: false, message: "usersData get failed" });
+      }
+    });
+
+    app.post("/users", async (req, res) => {
+      const userInfo = req.body;
+      try {
+        const result = await userCollection.insertOne(userInfo);
+        res.status(200).send(result);
+      } catch (error) {
+        res
+          .status(500)
+          .send({ success: false, message: "user post on data failed" });
+      }
     });
     //
 
