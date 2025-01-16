@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const express = require("express");
 require("dotenv").config();
 const cors = require("cors");
+const stripe = require("stripe")(process.env.STRIPE_SK);
 const app = express();
 
 const port = process.env.PORT;
@@ -167,7 +168,7 @@ async function run() {
 
     // ! Register Camp API's
 
-    app.post("/reg-camps", async (req, res) => {
+    app.post("/reg-camps", verifyToken, async (req, res) => {
       const regInfo = req.body;
       const result = await regCampCollection.insertOne(regInfo);
       res.send(result);
@@ -177,11 +178,52 @@ async function run() {
       const result = await regCampCollection.find().toArray();
       res.send(result);
     });
-    //
+
+    // User wise registered camp get
+    app.get("/reg-camps/:uid", verifyToken, async (req, res) => {
+      if (req.params.uid !== req.decoded.uid) {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
+      const registeredCamps = await regCampCollection
+        .find({ participantUid: req.params.uid })
+        .sort({ joinDate: -1 })
+        .toArray();
+      res.send(registeredCamps);
+    });
+
+    // single registered camp details get
+    app.get("/reg-camp/:id", verifyToken, async (req, res) => {
+      const result = await regCampCollection.findOne({
+        _id: new ObjectId(req.params.id),
+      });
+      res.send(result);
+    });
 
     //
 
     //
+
+    //
+
+    // ! Payment Intent
+
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+
+      if (!price) {
+        return res.send("price is 0");
+      }
+
+      const amount = parseInt(price * 100);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
 
     // ! Carousel API's
     app.get("/home/banner/carousel", async (req, res) => {
