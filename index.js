@@ -3,6 +3,7 @@ const express = require("express");
 require("dotenv").config();
 const cors = require("cors");
 const stripe = require("stripe")(process.env.STRIPE_SK);
+
 const app = express();
 
 const port = process.env.PORT;
@@ -224,6 +225,47 @@ async function run() {
     app.post("/transactions", verifyToken, async (req, res) => {
       const payInfo = req.body;
       const result = await transactionCollection.insertOne(payInfo);
+      res.send(result);
+    });
+
+    // User Based Transactions get
+    app.get("/transactions/:uid", verifyToken, async (req, res) => {
+      const { uid } = req.params;
+
+      const result = await transactionCollection
+        .aggregate([
+          {
+            $match: { userId: uid },
+          },
+          {
+            $addFields: {
+              regId: { $convert: { input: "$regId", to: "objectId" } },
+            },
+          },
+          {
+            $lookup: {
+              from: "registeredCamps",
+              localField: "regId",
+              foreignField: "_id",
+              as: "campDetails",
+            },
+          },
+          {
+            $unwind: "$campDetails",
+          },
+          {
+            $project: {
+              trxId: 1,
+              campName: 1,
+              campFee: 1,
+              payTime: 1,
+              paymentStatus: "$campDetails.paymentStatus",
+              confirmationStatus: "$campDetails.confirmationStatus",
+            },
+          },
+        ])
+        .sort({payTime: -1}).toArray();
+
       res.send(result);
     });
 
