@@ -30,6 +30,9 @@ async function run() {
     const campCollection = client.db("Zenith").collection("camps");
     const userCollection = client.db("Zenith").collection("users");
     const regCampCollection = client.db("Zenith").collection("registeredCamps");
+    const transactionCollection = client
+      .db("Zenith")
+      .collection("transactions");
 
     //! JWT API's
 
@@ -174,6 +177,23 @@ async function run() {
       res.send(result);
     });
 
+    // patch registered camp any filed with the body data.
+    app.patch("/reg-camps/:id", async (req, res) => {
+      const { id } = req.params;
+      const data = req.body;
+      const updateDoc = {
+        $set: {
+          ...data,
+        },
+      };
+      const result = await regCampCollection.updateOne(
+        { _id: new ObjectId(id) },
+        updateDoc
+      );
+      res.send(result);
+    });
+
+    // all reg camp get
     app.get("/reg-camps", async (req, res) => {
       const result = await regCampCollection.find().toArray();
       res.send(result);
@@ -186,16 +206,24 @@ async function run() {
       }
       const registeredCamps = await regCampCollection
         .find({ participantUid: req.params.uid })
-        .sort({ joinDate: -1 })
+        .sort({ campRegTime: -1 })
         .toArray();
       res.send(registeredCamps);
     });
 
-    // single registered camp details get
+    // single registered camp get
     app.get("/reg-camp/:id", verifyToken, async (req, res) => {
       const result = await regCampCollection.findOne({
         _id: new ObjectId(req.params.id),
       });
+      res.send(result);
+    });
+
+    // ! Transaction API's
+
+    app.post("/transactions", verifyToken, async (req, res) => {
+      const payInfo = req.body;
+      const result = await transactionCollection.insertOne(payInfo);
       res.send(result);
     });
 
