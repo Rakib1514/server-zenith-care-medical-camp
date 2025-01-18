@@ -88,7 +88,10 @@ async function run() {
 
     app.get("/camps", async (req, res) => {
       try {
-        const campsData = await campCollection.find().toArray();
+        const campsData = await campCollection
+          .find()
+          .sort({ postedTime: -1 })
+          .toArray();
         res.status(200).json(campsData);
       } catch (error) {
         console.log(`Error fetching all camps data`, error);
@@ -125,6 +128,51 @@ async function run() {
       const { id } = req.params;
       const campData = await campCollection.findOne({ _id: new ObjectId(id) });
       res.send(campData);
+    });
+
+    // Update  single Camp
+    app.patch(
+      "/update-camp/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { id } = req.params;
+        const updatedCamp = req.body;
+        const updatedDoc = {
+          $set: {
+            ...updatedCamp,
+          },
+        };
+
+        const result = await campCollection.updateOne(
+          { _id: new ObjectId(id) },
+          updatedDoc
+        );
+        res.send(result);
+      }
+    );
+
+    // Delete Camp
+    app.delete("/delete-camp/:id", async (req, res) => {
+      const { id } = req.params;
+
+      const result = await campCollection.deleteOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
+    // Increase participant count
+
+    app.patch("/participant-count/inc/:id", verifyToken, async (req, res) => {
+      const { id } = req.params;
+      const updateDoc = {
+        $inc: { participantCount: 1 },
+      };
+
+      const result = await campCollection.updateOne(
+        { _id: new ObjectId(id) },
+        updateDoc
+      );
+      res.send(result);
     });
 
     // ! Users API's
@@ -178,14 +226,11 @@ async function run() {
       res.send(result);
     });
 
-    // patch registered camp any filed with the body data.
-    app.patch("/reg-camps/:id", async (req, res) => {
+    // patch payment status true for user.
+    app.patch("/set-Payment-status/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
-      const data = req.body;
       const updateDoc = {
-        $set: {
-          ...data,
-        },
+        $set: {paymentStatus: true,},
       };
       const result = await regCampCollection.updateOne(
         { _id: new ObjectId(id) },
@@ -194,9 +239,29 @@ async function run() {
       res.send(result);
     });
 
+
+    // patch confirm status for admin
+    app.patch('/set-confirm-status/:id',verifyToken, verifyAdmin, async (req, res) => {
+      const {id} = req.params;
+      const updateDoc = {
+        $set: {confirmationStatus: true}
+      }
+      const result = await regCampCollection.updateOne({_id: new ObjectId(id)}, updateDoc)
+      res.send(result)
+    });
+
+    // Delete or Cancel user registered camp 
+    app.delete('/delete-reg/:id', verifyToken, verifyAdmin, async (req,res) => {
+      const {id} = req.params;
+
+      const result = await regCampCollection.deleteOne({_id: new ObjectId(id)});
+      res.send(result)
+      
+    })
+
     // all reg camp get
-    app.get("/reg-camps", async (req, res) => {
-      const result = await regCampCollection.find().toArray();
+    app.get("/reg-camps", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await regCampCollection.find().sort({payTime: -1}).toArray();
       res.send(result);
     });
 
@@ -264,7 +329,8 @@ async function run() {
             },
           },
         ])
-        .sort({payTime: -1}).toArray();
+        .sort({ payTime: -1 })
+        .toArray();
 
       res.send(result);
     });
