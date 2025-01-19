@@ -34,6 +34,7 @@ async function run() {
     const transactionCollection = client
       .db("Zenith")
       .collection("transactions");
+    const feedbackCollection = client.db("Zenith").collection("feedback");
 
     //! JWT API's
 
@@ -161,7 +162,6 @@ async function run() {
     });
 
     // Increase participant count
-
     app.patch("/participant-count/inc/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const updateDoc = {
@@ -175,6 +175,22 @@ async function run() {
       res.send(result);
     });
 
+    // Search camp
+    app.get("/search", async (req, res) => {
+      const searchQuery = req.query.v;
+      const result = await campCollection
+        .find({
+          $or: [
+            { name: { $regex: searchQuery, $options: "i" } },
+            { healthcareProfessional: { $regex: searchQuery, $options: "i" } },
+            { location: { $regex: searchQuery, $options: "i" } },
+            { description: { $regex: searchQuery, $options: "i" } },
+          ],
+        })
+        .toArray();
+      res.send(result);
+    });
+
     // ! Users API's
 
     // Admin Or not check API
@@ -182,7 +198,6 @@ async function run() {
       if (req.params.uid !== req.decoded.uid) {
         return res.status(403).send({ message: "Forbidden access" });
       }
-
       const user = await userCollection.findOne({ uid: req.params.uid });
       let admin = false;
       if (user) {
@@ -218,7 +233,12 @@ async function run() {
       }
     });
 
-    // ! Register Camp API's
+    app.get('/user/:uid', verifyToken, async (req, res) => {
+      const result = await userCollection.findOne({uid: req.params.uid});
+      res.send(result)
+    })
+
+    // ! Registered Camp API's
 
     app.post("/reg-camps", verifyToken, async (req, res) => {
       const regInfo = req.body;
@@ -230,7 +250,7 @@ async function run() {
     app.patch("/set-Payment-status/:id", verifyToken, async (req, res) => {
       const { id } = req.params;
       const updateDoc = {
-        $set: {paymentStatus: true,},
+        $set: { paymentStatus: true },
       };
       const result = await regCampCollection.updateOne(
         { _id: new ObjectId(id) },
@@ -239,29 +259,73 @@ async function run() {
       res.send(result);
     });
 
-
-    // patch confirm status for admin
-    app.patch('/set-confirm-status/:id',verifyToken, verifyAdmin, async (req, res) => {
-      const {id} = req.params;
+    app.patch("/feedback-status/:id", verifyToken, async (req, res) => {
+      const { id } = req.params;
       const updateDoc = {
-        $set: {confirmationStatus: true}
-      }
-      const result = await regCampCollection.updateOne({_id: new ObjectId(id)}, updateDoc)
-      res.send(result)
+        $set: { feedbackStatus: true },
+      };
+      const result = await regCampCollection.updateOne(
+        { _id: new ObjectId(id) },
+        updateDoc,
+        { upsert: true }
+      );
+      res.send(result);
     });
 
-    // Delete or Cancel user registered camp 
-    app.delete('/delete-reg/:id', verifyToken, verifyAdmin, async (req,res) => {
-      const {id} = req.params;
+    // patch confirm status for admin
+    app.patch(
+      "/set-confirm-status/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { id } = req.params;
+        const updateDoc = {
+          $set: { confirmationStatus: true },
+        };
+        const result = await regCampCollection.updateOne(
+          { _id: new ObjectId(id) },
+          updateDoc
+        );
+        res.send(result);
+      }
+    );
 
-      const result = await regCampCollection.deleteOne({_id: new ObjectId(id)});
-      res.send(result)
-      
-    })
+    // Delete or Cancel any user registered camp by admin
+    app.delete(
+      "/delete-reg/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { id } = req.params;
+        const result = await regCampCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        res.send(result);
+      }
+    );
+
+    // User wise cancel reg camp
+    app.delete("/cancel-reg/:id", verifyToken, async (req, res) => {
+      const regDoc = await regCampCollection.findOne({
+        _id: new ObjectId(req.params.id),
+      });
+      if (regDoc.participantUid !== req.decoded.uid) {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
+
+      const { id } = req.params;
+      const result = await regCampCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
+    });
 
     // all reg camp get
     app.get("/reg-camps", verifyToken, verifyAdmin, async (req, res) => {
-      const result = await regCampCollection.find().sort({payTime: -1}).toArray();
+      const result = await regCampCollection
+        .find()
+        .sort({ campRegTime: -1 })
+        .toArray();
       res.send(result);
     });
 
@@ -282,6 +346,14 @@ async function run() {
       const result = await regCampCollection.findOne({
         _id: new ObjectId(req.params.id),
       });
+      res.send(result);
+    });
+
+    // !FeedBack API's
+
+    app.post("/feedback", verifyToken, async (req, res) => {
+      const newFeedback = req.body;
+      const result = await feedbackCollection.insertOne(newFeedback);
       res.send(result);
     });
 
