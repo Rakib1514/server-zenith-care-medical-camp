@@ -24,9 +24,6 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    //
-
-    //
     const carouselCollection = client.db("Zenith").collection("carousel");
     const campCollection = client.db("Zenith").collection("camps");
     const userCollection = client.db("Zenith").collection("users");
@@ -45,6 +42,7 @@ async function run() {
       });
       res.send({ token });
     });
+
     // Verify Token
     const verifyToken = (req, res, next) => {
       if (!req.headers.authorization) {
@@ -69,7 +67,6 @@ async function run() {
       if (!isAdmin) {
         return res.status(403).send({ message: "forbidden access" });
       }
-
       next();
     };
 
@@ -252,6 +249,16 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/users/google-sign-in", async (req, res) => {
+      const userInfo = req.body;
+      const isUserActive = await userCollection.findOne({ uid: userInfo?.uid });
+      if (isUserActive) {
+        return res.send({ message: "user already in db" });
+      }
+      const result = await userCollection.insertOne(userInfo);
+      res.send(result);
+    });
+
     // ! Registered Camp API's
 
     app.post("/reg-camps", verifyToken, async (req, res) => {
@@ -364,7 +371,6 @@ async function run() {
     });
 
     // !FeedBack API's
-
     app.post("/feedback", verifyToken, async (req, res) => {
       const newFeedback = req.body;
       const result = await feedbackCollection.insertOne(newFeedback);
@@ -391,7 +397,6 @@ async function run() {
     });
 
     // ! Transaction API's
-
     app.post("/transactions", verifyToken, async (req, res) => {
       const payInfo = req.body;
       const result = await transactionCollection.insertOne(payInfo);
@@ -439,10 +444,6 @@ async function run() {
 
       res.send(result);
     });
-
-    //
-
-    //
 
     //
 
