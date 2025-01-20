@@ -233,10 +233,24 @@ async function run() {
       }
     });
 
-    app.get('/user/:uid', verifyToken, async (req, res) => {
-      const result = await userCollection.findOne({uid: req.params.uid});
-      res.send(result)
-    })
+    app.get("/user/:uid", verifyToken, async (req, res) => {
+      const result = await userCollection.findOne({ uid: req.params.uid });
+      res.send(result);
+    });
+
+    app.patch("/user/:uid", verifyToken, async (req, res) => {
+      const updateUser = {
+        $set: {
+          ...req.body,
+        },
+      };
+      const result = await userCollection.updateOne(
+        { uid: req.params.uid },
+        updateUser,
+        { upsert: true }
+      );
+      res.send(result);
+    });
 
     // ! Registered Camp API's
 
@@ -354,6 +368,25 @@ async function run() {
     app.post("/feedback", verifyToken, async (req, res) => {
       const newFeedback = req.body;
       const result = await feedbackCollection.insertOne(newFeedback);
+      res.send(result);
+    });
+
+    app.get("/feedback", async (req, res) => {
+      const result = await feedbackCollection
+        .aggregate([
+          {
+            $project: {
+              _id: 0,
+              feedbackComment: 1,
+              campName: 1,
+              drName: 1,
+              Rate: 1,
+              participantName: { $substr: ["$participantName", 0, 3] },
+            },
+          },
+        ])
+        .sort({ feedbackPostTime: -1 })
+        .toArray();
       res.send(result);
     });
 
