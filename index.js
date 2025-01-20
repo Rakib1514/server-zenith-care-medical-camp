@@ -151,7 +151,7 @@ async function run() {
     );
 
     // Delete Camp
-    app.delete("/delete-camp/:id", async (req, res) => {
+    app.delete("/delete-camp/:id",verifyToken, verifyAdmin, async (req, res) => {
       const { id } = req.params;
 
       const result = await campCollection.deleteOne({ _id: new ObjectId(id) });
