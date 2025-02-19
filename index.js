@@ -28,6 +28,7 @@ async function run() {
     const campCollection = client.db("Zenith").collection("camps");
     const userCollection = client.db("Zenith").collection("users");
     const regCampCollection = client.db("Zenith").collection("registeredCamps");
+    const doctorCollection = client.db("Zenith").collection("doctor");
     const transactionCollection = client
       .db("Zenith")
       .collection("transactions");
@@ -151,12 +152,19 @@ async function run() {
     );
 
     // Delete Camp
-    app.delete("/delete-camp/:id",verifyToken, verifyAdmin, async (req, res) => {
-      const { id } = req.params;
+    app.delete(
+      "/delete-camp/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const { id } = req.params;
 
-      const result = await campCollection.deleteOne({ _id: new ObjectId(id) });
-      res.send(result);
-    });
+        const result = await campCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        res.send(result);
+      }
+    );
 
     // Increase participant count
     app.patch("/participant-count/inc/:id", verifyToken, async (req, res) => {
@@ -445,8 +453,6 @@ async function run() {
       res.send(result);
     });
 
-    //
-
     // ! Payment Intent
 
     app.post("/create-payment-intent", async (req, res) => {
@@ -472,8 +478,23 @@ async function run() {
       const carouselData = await carouselCollection.find().toArray();
       res.send(carouselData);
     });
+
+
+    // ! Doctor API's
+  app.get("/doctors", async (req, res) => {
+    const result = await doctorCollection.find().toArray();
+    res.send(result);
+  })
+
+  // Single Doctor Details get
+  app.get("/doctor/:id", async (req, res) => {
+    const result = await doctorCollection.findOne({ _id: new ObjectId(req.params.id) });
+    res.send(result);
+  })
+    
+    
   } finally {
-    // For finally do something
+    // For finally
   }
 }
 run().catch(console.dir);
